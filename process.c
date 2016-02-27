@@ -15,7 +15,6 @@ struct message
 int msglen=10000,msgid;
 
 int toint(char S[]);
-// void pause_fun();
 void notify_handler();
 void suspend_handler();
 void extract(char *S[], int *NOI,int *SleepProb,int *Priority,int *SleepTime);
@@ -31,94 +30,48 @@ int main(int argc, char *argv[])
 
     int pid=(int)getpid(),flag=1,pr;
     printf("PID %d\n",pid);
-    int NOI,SleepProb,Priority,SleepTime; //SleepProb is multiplied by a factor of 100 i.e 0.3->30
+    int NOI,SleepProb,Priority,SleepTime; //SleepProb is on a base of 100 i.e 0.3->30
     int i=1,j,k,timequanta=1000,temp,status;
-    key_t key=1024;
+    key_t key=1025;
     extract(argv,&NOI,&SleepProb,&Priority,&SleepTime);
     msgid=msgget(key,IPC_CREAT|0644);
     memset(msg.mtext,'\0',msglen);
     sprintf(msg.mtext,"%d ",getpid());
     strcat(msg.mtext,argv[2]);
     msg.mtype=200;
-	status=msgsnd(msgid,&msg,100,0);
+	while(msgsnd(msgid,&msg,100,0)==-1);
     memset(msg.mtext,'\0',msglen);
-	status = msgrcv(msgid, &msg, msglen, pid, 0);
+	while(msgrcv(msgid, &msg, msglen, pid, 0)==-1);
     scheduler_pid=toint(msg.mtext);
-    i=0;
+    i=1;
     pause();
-    printf("hola\n");
-    while(i<NOI)//flag)
+    while(i<=NOI)
     {
-        // do {
-        //     status = msgrcv(msgid, &msg, msglen, 1000+pid, 0);
-        // } while(status==-1);
-        // pause_fun();
-        // for(j=1;j<=timequanta;j++)
-        // {
-            i+=1;
-            // if(i>NOI)
-            // {
-                // flag=0;
-                // memset(msg.mtext,'\0',msglen);
-                // msg.mtext[0]='t';
-                // msg.mtype=getpid();
-                // status=msgsnd(msgid,&msg,strlen(msg.mtext),0);
-			    // kill(scheduler_pid,SIGUSR2);
-       //          break;
-            // }
-            printf("PID: %d, %d\n",pid,i);
-            pr=rand()%100+1;
-            if(pr<=SleepProb)
-            {
-                /**
-                	send I/O signal to scheduler
-                */
-                // memset(msg.mtext,'\0',msglen);
-                // msg.mtext[0]='i';
-                // msg.mtype=getpid();
-                // status=msgsnd(msgid,&msg,strlen(msg.mtext),0);
-                kill(scheduler_pid,SIGUSR1);
-                printf("PID: %d Going for IO\n",pid);
-                sleep(SleepTime);
-                /**
-                	inform scheduler via MSG Q
-                */
-                memset(msg.mtext,'\0',msglen);
-                msg.mtext[0]='d';
-                msg.mtype=getpid();
-                status=msgsnd(msgid,&msg,strlen(msg.mtext),0);
-                printf("before pause()\n");
-                pause();
-                printf("after pause()\n");
-            }
-        // }
-        // if(j>timequanta)
-        // {
-        //     memset(msg.mtext,'\0',msglen);
-        //     msg.mtext[0]='e';   //time quanta expired successfully
-        //     msg.mtype=getpid();
-        //     status=msgsnd(msgid,&msg,strlen(msg.mtext),0);
-        // }
-    }
+        printf("PID: %d, %d\n",pid,i);
+        pr=rand()%100+1;
+        if(pr<=SleepProb)
+        {
+            kill(scheduler_pid,SIGUSR1);
+            printf("PID: %d Going for IO\n",pid);
+            sleep(SleepTime);
+            /**
+            	inform scheduler via MSG Q
+            */
+            memset(msg.mtext,'\0',msglen);
+            msg.mtext[0]='d';
+            msg.mtype=getpid();
+            while(msgsnd(msgid,&msg,strlen(msg.mtext),0)==-1);
+            // printf("Sent Return to %d\nbefore pause()\n",scheduler_pid);
+            pause();
+            // printf("after pause()\n");
+        }
+    	i+=1;
+	}
     kill(scheduler_pid,SIGUSR2);
-    // sleep(100);
+    printf("Process Terminated\n");
+    getchar();
 return 0;
 }
-
-void handler()
-{
-    done_waiting = 1;
-}
-
-// void pause_fun()
-// {
-//     done_waiting = 0;
-//     msg.mtype=2000+getpid();
-//     strcpy(msg.mtext,"ACK");
-//     if(msgsnd(msgid,&msg,10,0)==-1);
-//     signal(SIGINT, handler);
-//     while ( !done_waiting );
-// }
 
 int toint(char S[])
 {
@@ -141,13 +94,13 @@ void extract(char *S[], int *NOI,int *SleepProb,int *Priority,int *SleepTime)
 
 void suspend_handler()
 {
-	signal(SIGUSR1,suspend_handler);
-	signal(SIGUSR2,notify_handler);
+	// printf("Suspended\n");
+	// signal(SIGUSR2,notify_handler);
 	pause();
+	// printf("returning from suspension\n");
 }
 
 void notify_handler()
 {
-	signal(SIGUSR1,suspend_handler);
-	signal(SIGUSR2,notify_handler);
+	// printf("Notified\n");
 }

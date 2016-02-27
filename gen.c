@@ -6,7 +6,7 @@
 int main()
 {
 	int n=4;
-    char NOI[2][20]={"200","80"};
+    char NOI[2][20]={"100","50"};
     char Priority[2][20]={"10","5"};
     char SleepProb[2][20]={"30","70"};
     char SleepTime[2][20]={"1","1"};

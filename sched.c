@@ -40,6 +40,7 @@ void remove_entry(int pid);
 void allocate(int isPR);
 void enqueue(struct process q);
 void notify(int pid);
+void suspend(int pid);
 void set_turnaround(int pid);
 void set_enqueue(int pid);
 void set_response(int pid);
@@ -49,6 +50,7 @@ int find_ind(int pid);
 void io_handler();
 void terminated_handler();
 void check_io_returns();
+void check_new_processes();
 
 int main(int argc,char *argv[])
 {
@@ -62,7 +64,7 @@ int main(int argc,char *argv[])
     int timequanta=1000;
     if(argv[1][0]=='P')
         timequanta=2000;
-    key_t key=1024;
+    key_t key=1025;
     int status,i,j,running_pid,isPR=(timequanta==2000);//,issuccess;
     msgid=msgget(key,IPC_CREAT|0644);
     /**
@@ -83,52 +85,32 @@ int main(int argc,char *argv[])
     set_enqueue(ready_queue[0].pid);
     while(process_count!=0)
     {
-    	printf(" before dispatch r : %d, w : %d, p : %d\n",rend-rstart,wend-wstart,process_count);
         if(rstart<rend){
             allocate(isPR); //schedule a process
-            printf("P%d %d is running\n",find_ind(running.pid),running.pid);
-            valid=1;
             notify(running.pid);    //notify scheduled process
+            printf("Quanta : %d, P%d %d is running\n",timequanta,find_ind(running.pid),running.pid);
         }
-        printf(" after dispatch r : %d, w : %d, p : %d\n",rend-rstart,wend-wstart,process_count);
-        for(j=0;j<timequanta && valid==1;j++)
+        // printf(" %d : after dispatch r : %d, w : %d, p : %d\n",getpid(),rend-rstart,wend-wstart,process_count);
+        for(j=0,printf("j initial : %d, ",j);valid==1;j++)
 		{
 	        /*
 	        	Receive PID Priority from msgQ (if any)
 	        */
-	        memset(msg.mtext,'\0',msglen);
-	        status = msgrcv(msgid, &msg, msglen, 200, IPC_NOWAIT);
-	        if(status!=-1)
-	            {
-	                process_count+=1;
-	                total+=1;
-	                insert(msg.mtext);
-	                /*
-	                	Send Scheduler PID
-	                */
-	                memset(msg.mtext,'\0',msglen);
-	                sprintf(msg.mtext,"%d",getpid());
-	                msg.mtype=ready_queue[rend-1].pid;
-	                status=msgsnd(msgid,&msg,strlen(msg.mtext),0);
-	                if(status==-1)
-	                    printf("timequanta sending to pid %ld failed\n",msg.mtype);
-	                set_enqueue(ready_queue[rend-1].pid);
-	            }
-	        	check_io_returns();
-	        }
+	        check_new_processes();
+	        check_io_returns();
 			if(j>=timequanta)
-        	{
-        		kill(SIGUSR1,running.pid);
-        		printf("\ttimequanta expired\n");
-        	}
-            if(valid==1)
-            {
-                enqueue(running);
-                set_enqueue(running.pid);
-            }
-    	    do{
-    	    	check_io_returns();
-            }while(rstart>=rend && process_count!=0);
+	    	{
+	    		if(valid)
+	    			suspend(running.pid);
+	    		break;
+			}
+	    }
+	    printf("j final %d, tq %d\n",j,timequanta);
+        do{
+	    	check_new_processes();
+	    	check_io_returns();
+        }while(rstart>=rend && process_count!=0);
+    	valid=1;
     }
     float res=0,turn=0,wait=0;
     FILE *fp=fopen("result.txt","w");
@@ -210,6 +192,13 @@ void notify(int pid)
     set_response(pid);
 }
 
+void suspend(int pid)
+{
+	kill(pid,SIGUSR1);
+    enqueue(running);
+    set_enqueue(running.pid);
+	printf("Suspended %d\n", pid);
+}
 void enqueue(struct process q)
 {
     ready_queue[rend]=q;
@@ -313,4 +302,27 @@ void check_io_returns()
         }
     }
 
+}
+
+void check_new_processes()
+{
+	int status;
+    memset(msg.mtext,'\0',msglen);
+    status = msgrcv(msgid, &msg, msglen, 200, IPC_NOWAIT);
+    if(status!=-1)
+        {
+            process_count+=1;
+            total+=1;
+            insert(msg.mtext);
+            /*
+            	Send Scheduler PID
+            */
+            memset(msg.mtext,'\0',msglen);
+            sprintf(msg.mtext,"%d",getpid());
+            msg.mtype=ready_queue[rend-1].pid;
+            while(msgsnd(msgid,&msg,strlen(msg.mtext),0)==-1);
+            if(status==-1)
+                printf("Scheduler PID sending to pid %ld failed\n",msg.mtype);
+            set_enqueue(ready_queue[rend-1].pid);
+        }
 }
