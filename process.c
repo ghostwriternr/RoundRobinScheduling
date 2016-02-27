@@ -20,17 +20,19 @@ void notify_handler();
 void suspend_handler();
 void extract(char *S[], int *NOI,int *SleepProb,int *Priority,int *SleepTime);
 
-int done_waiting;
+int done_waiting,scheduler_pid;
 
 int main(int argc, char *argv[])
 {
 	signal(SIGUSR1,suspend_handler);
 	signal(SIGUSR2,notify_handler);
+
     srand(time(NULL)); //Seeding srand()
+
     int pid=(int)getpid(),flag=1,pr;
     printf("PID %d\n",pid);
     int NOI,SleepProb,Priority,SleepTime; //SleepProb is multiplied by a factor of 100 i.e 0.3->30
-    int i=1,j,k,timequanta,temp,status;
+    int i=1,j,k,timequanta=1000,temp,status;
     key_t key=1024;
     extract(argv,&NOI,&SleepProb,&Priority,&SleepTime);
     msgid=msgget(key,IPC_CREAT|0644);
@@ -38,34 +40,32 @@ int main(int argc, char *argv[])
     sprintf(msg.mtext,"%d ",getpid());
     strcat(msg.mtext,argv[2]);
     msg.mtype=200;
-    do {
-        status=msgsnd(msgid,&msg,100,IPC_NOWAIT);
-    } while(status==-1);
+	status=msgsnd(msgid,&msg,100,0);
     memset(msg.mtext,'\0',msglen);
-    do {
-        status = msgrcv(msgid, &msg, msglen, pid, IPC_NOWAIT);
-    } while(status==-1);
-    timequanta=toint(msg.mtext);
+	status = msgrcv(msgid, &msg, msglen, pid, 0);
+    scheduler_pid=toint(msg.mtext);
     i=0;
     pause();
-    while(flag)
+    printf("hola\n");
+    while(i<NOI)//flag)
     {
         // do {
         //     status = msgrcv(msgid, &msg, msglen, 1000+pid, 0);
         // } while(status==-1);
         // pause_fun();
-        for(j=1;j<=timequanta;j++)
-        {
+        // for(j=1;j<=timequanta;j++)
+        // {
             i+=1;
-            if(i>NOI)
-            {
-                flag=0;
-                memset(msg.mtext,'\0',msglen);
-                msg.mtext[0]='t';
-                msg.mtype=getpid();
-                status=msgsnd(msgid,&msg,strlen(msg.mtext),0);
-                break;
-            }
+            // if(i>NOI)
+            // {
+                // flag=0;
+                // memset(msg.mtext,'\0',msglen);
+                // msg.mtext[0]='t';
+                // msg.mtype=getpid();
+                // status=msgsnd(msgid,&msg,strlen(msg.mtext),0);
+			    // kill(scheduler_pid,SIGUSR2);
+       //          break;
+            // }
             printf("PID: %d, %d\n",pid,i);
             pr=rand()%100+1;
             if(pr<=SleepProb)
@@ -73,10 +73,11 @@ int main(int argc, char *argv[])
                 /**
                 	send I/O signal to scheduler
                 */
-                memset(msg.mtext,'\0',msglen);
-                msg.mtext[0]='i';
-                msg.mtype=getpid();
-                status=msgsnd(msgid,&msg,strlen(msg.mtext),0);
+                // memset(msg.mtext,'\0',msglen);
+                // msg.mtext[0]='i';
+                // msg.mtype=getpid();
+                // status=msgsnd(msgid,&msg,strlen(msg.mtext),0);
+                kill(scheduler_pid,SIGUSR1);
                 printf("PID: %d Going for IO\n",pid);
                 sleep(SleepTime);
                 /**
@@ -89,15 +90,17 @@ int main(int argc, char *argv[])
                 pause();
                 break;
             }
-        }
-        if(j>timequanta)
-        {
-            memset(msg.mtext,'\0',msglen);
-            msg.mtext[0]='e';   //time quanta expired successfully
-            msg.mtype=getpid();
-            status=msgsnd(msgid,&msg,strlen(msg.mtext),0);
-        }
+        // }
+        // if(j>timequanta)
+        // {
+        //     memset(msg.mtext,'\0',msglen);
+        //     msg.mtext[0]='e';   //time quanta expired successfully
+        //     msg.mtype=getpid();
+        //     status=msgsnd(msgid,&msg,strlen(msg.mtext),0);
+        // }
     }
+    kill(scheduler_pid,SIGUSR2);
+    sleep(100);
 return 0;
 }
 

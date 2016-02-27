@@ -25,7 +25,7 @@ struct message
 long mtype;
 char mtext[10000];
 } msg;
-int msgid,msglen=10000,rstart=0,rend=0,wstart=0,wend=0,tt_count=0,total=1;
+int msgid,msglen=10000,rstart=0,rend=0,wstart=0,wend=0,tt_count=0,process_count=1,total=1,valid=1;
 
 struct process
 {
@@ -44,55 +44,70 @@ void set_response(int pid);
 float calculate_wait(int pid);
 void set_dispatch(int pid);
 int find_ind(int pid);
+void io_handler();
+void terminated_handler();
 
 int main(int argc,char *argv[])
 {
+	signal(SIGUSR1,io_handler);
+	signal(SIGUSR2,terminated_handler);
     if(argc!=2 || (strcmp(argv[1],"RR")!=0 && strcmp(argv[1],"PR")!=0))
         {
             printf("Incorrect Arguments!\n");
             return 1;
         }
-    int timequanta=1000;
+    int timequanta=100000;
     if(argv[1][0]=='P')
-        timequanta=2000;
+        timequanta=200000;
     key_t key=1024;
-    // FILE *ftr=fopen("kirk.c","w");
-    // if ((key = ftok("kirk.c", 'B')) == -1) {
-    //     perror("ftok");
-    //     exit(1);
-    // }
-    int status,i,j,running_pid,isPR=(timequanta==2000),issuccess;
+    int status,i,j,running_pid,isPR=(timequanta==2000);//,issuccess;
     msgid=msgget(key,IPC_CREAT|0644);
-    /*Receive PID and Priority of first process*/
+    /**
+    	Receive PID and Priority of first process
+    */
     memset(msg.mtext,'\0',msglen);
     status = msgrcv(msgid, &msg, msglen, 200, 0);
     if(status==-1)
         return 1;
     insert(msg.mtext);
-    /*Send timequanta to Received PID*/
+    /*
+    	Send Scheduler PID to Received PID
+    */
     memset(msg.mtext,'\0',msglen);
-    sprintf(msg.mtext,"%d",timequanta);
+    sprintf(msg.mtext,"%d",getpid());
     msg.mtype=ready_queue[rend-1].pid;
     status=msgsnd(msgid,&msg,strlen(msg.mtext),0);
-    /*Send 'suspend' to Received PID*/
-    memset(msg.mtext,'\0',msglen);
-    strcpy(msg.mtext,"suspend");
-    msg.mtype=1000 + ready_queue[rend-1].pid;
-    while(status=msgsnd(msgid,&msg,strlen(msg.mtext),0)==-1);
+    // /*Send 'suspend' to Received PID*/
+    // memset(msg.mtext,'\0',msglen);
+    // strcpy(msg.mtext,"suspend");
+    // msg.mtype=1000 + ready_queue[rend-1].pid;
+    // while(status=msgsnd(msgid,&msg,strlen(msg.mtext),0)==-1);
     set_enqueue(ready_queue[0].pid);
-    int process_count=1,isdone=0,isio=0;
+    // int isdone=0,isio=0;
     while(process_count!=0)
     {
+    	printf(" r : %d, w : %d, p : %d\n",rend-rstart,wend-wstart,process_count);
         if(rstart<rend){
             allocate(isPR); //schedule a process
-            status = msgrcv(msgid, &msg, msglen, 2000+running.pid, 0);
+            // status = msgrcv(msgid, &msg, msglen, 2000+running.pid, 0);
             printf("P%d %d is running\n",find_ind(running.pid),running.pid);
+            valid=1;
             notify(running.pid);    //notify scheduled process
         }
-        isdone=0;
-        isio=0;
-        issuccess=0;
-        /*Receive PID Priority from msgQ (if any)*/
+        for(j=0;j<timequanta && valid==1;j++)
+        	;
+        if(j>=timequanta)
+        	{
+        		kill(SIGUSR1,running.pid);
+        		printf("\ttimequanta expired\n");
+        	}
+        sleep(2);
+        // isdone=0;
+        // isio=0;
+        // issuccess=0;
+        /*
+        	Receive PID Priority from msgQ (if any)
+        */
         memset(msg.mtext,'\0',msglen);
         status = msgrcv(msgid, &msg, msglen, 200, IPC_NOWAIT);
         if(status!=-1)
@@ -100,55 +115,58 @@ int main(int argc,char *argv[])
                 process_count+=1;
                 total+=1;
                 insert(msg.mtext);
-                /*Send timequanta*/
+                /*
+                	Send Scheduler PID
+                */
                 memset(msg.mtext,'\0',msglen);
-                sprintf(msg.mtext,"%d",timequanta);
+                sprintf(msg.mtext,"%d",getpid());
                 msg.mtype=ready_queue[rend-1].pid;
                 status=msgsnd(msgid,&msg,strlen(msg.mtext),0);
                 if(status==-1)
                     printf("timequanta sending to pid %ld failed\n",msg.mtype);
                 set_enqueue(ready_queue[rend-1].pid);
-                /*Send 'suspend' to Received PID*/
-                memset(msg.mtext,'\0',msglen);
-                strcpy(msg.mtext,"suspend");
-                msg.mtype=ready_queue[rend-1].pid+1000;
-                while(status=msgsnd(msgid,&msg,strlen(msg.mtext),0)==-1);
+                // /*Send 'suspend' to Received PID*/
+                // memset(msg.mtext,'\0',msglen);
+                // strcpy(msg.mtext,"suspend");
+                // msg.mtype=ready_queue[rend-1].pid+1000;
+                // while(status=msgsnd(msgid,&msg,strlen(msg.mtext),0)==-1);
             }
-        memset(msg.mtext,'\0',msglen);
-        status=-1;
-        while (status==-1) status = msgrcv(msgid, &msg, msglen, running.pid, 0);
-        if(msg.mtext[0]=='t')   //process terminated
-            {
-                isdone=1;
-            }
-        else if(msg.mtext[0]=='i')  //process requested IO
-            {
-                isio=1;
-                printf("P%d %d requests I/O\n",find_ind(running.pid),running.pid);
-            }
-        else if(msg.mtext[0]=='e')  //time quanta expired
-            {
-                issuccess=1;
-            }
-        if(isdone==1){
-            process_count-=1;
-            set_turnaround(running.pid);
-            }
-        else{
-                /*Send 'suspend' to Received PID*/
-                memset(msg.mtext,'\0',msglen);
-                strcpy(msg.mtext,"suspend");
-                msg.mtype=1000 + running.pid;
-                while(status=msgsnd(msgid,&msg,strlen(msg.mtext),IPC_NOWAIT)==-1);
-                if(isio==1){
-                    waiting_queue[wend++]=running;
-                }
-                else if(issuccess==1)
+        // memset(msg.mtext,'\0',msglen);
+        // status=-1;
+        // while (status==-1) status = msgrcv(msgid, &msg, msglen, running.pid, 0);
+        // if(msg.mtext[0]=='t')   //process terminated
+        //     {
+        //         isdone=1;
+        //     }
+        // else if(msg.mtext[0]=='i')  //process requested IO
+        //     {
+        //         isio=1;
+        //         printf("P%d %d requests I/O\n",find_ind(running.pid),running.pid);
+        //     }
+        // else if(msg.mtext[0]=='e')  //time quanta expired
+        //     {
+        //         issuccess=1;
+        //     }
+        // if(isdone==1){
+            // process_count-=1;
+            // set_turnaround(running.pid);
+        //     }
+        // else{
+                // /*Send 'suspend' to Received PID*/
+                // memset(msg.mtext,'\0',msglen);
+                // strcpy(msg.mtext,"suspend");
+                // msg.mtype=1000 + running.pid;
+                // while(status=msgsnd(msgid,&msg,strlen(msg.mtext),IPC_NOWAIT)==-1);
+                // if(isio==1){
+                //     waiting_queue[wend++]=running;
+                // }
+                // else
+            if(valid==1)
                     {
                         enqueue(running);
                         set_enqueue(running.pid);
                     }
-                }
+                // }
             do{
                 for(i=wstart;i<wend;i++)
                     {
@@ -179,6 +197,23 @@ int main(int argc,char *argv[])
     fprintf(fp,"Average Values\t%f\t%f\t%f",res/tt_count,wait/tt_count,turn/tt_count);
     fclose(fp);
     return 0;
+}
+
+void io_handler()
+{
+	waiting_queue[wend]=running;
+	wend+=1;
+	printf("\tinside io handler w : %d\n",wend-wstart );
+	valid=0;
+    printf("P%d %d requests I/O\n",find_ind(running.pid),running.pid);
+}
+
+void terminated_handler()
+{
+        process_count-=1;
+        valid=0;
+        set_turnaround(running.pid);
+
 }
 
 int find_ind(int pid)
@@ -223,14 +258,16 @@ void set_turnaround(int pid)
 
 void notify(int pid)
 {
-    kill(pid,SIGINT);
+    kill(pid,SIGUSR2);
+    printf("Notified %d\n",pid);
     set_dispatch(pid);
     set_response(pid);
 }
 
 void enqueue(struct process q)
 {
-    ready_queue[rend++]=q;
+    ready_queue[rend]=q;
+    rend+=1;
 }
 
 void allocate(int isPR)
@@ -308,4 +345,5 @@ void insert(char S[])
         }
     ready_queue[rend].Priority=j;
     rend++;
+    printf("inside insert r : %d\n",rend-rstart);
 }

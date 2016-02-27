@@ -6,9 +6,9 @@
 int main()
 {
 	int n=1;
-    char NOI[2][20]={"100","20"};
+    char NOI[2][20]={"1000","20"};
     char Priority[2][20]={"10","5"};
-    char SleepProb[2][20]={"20","50"};
+    char SleepProb[2][20]={"40","50"};
     char SleepTime[2][20]={"1","2"};
     char exe[100]={"./process.out "};
     char command[100];
@@ -42,10 +42,10 @@ int main()
     for(i=0;i<(n+1)/2;i++)
     {
     	printf("\t%d : %s\n",i,command);
-    	pid=fork();
-        if(pid==0)
+        if(fork()==0)
             {
                 execl("/usr/bin/xterm", "/usr/bin/xterm", "-e", "bash", "-c", command, (void*)NULL);
+            	printf("afaf");
             }
         sleep(1);
     }
@@ -65,8 +65,7 @@ int main()
     for(;i<n;i++)    
     {
     	printf("\t%d : %s\n",i,command);
-        pid=fork();
-        if(pid==0)
+        if(fork()==0)
             {
                 execl("/usr/bin/xterm", "/usr/bin/xterm", "-e", "bash", "-c", command, (void*)NULL);
             }
