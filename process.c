@@ -87,8 +87,9 @@ int main(int argc, char *argv[])
                 msg.mtext[0]='d';
                 msg.mtype=getpid();
                 status=msgsnd(msgid,&msg,strlen(msg.mtext),0);
+                printf("before pause()\n");
                 pause();
-                break;
+                printf("after pause()\n");
             }
         // }
         // if(j>timequanta)
@@ -100,7 +101,7 @@ int main(int argc, char *argv[])
         // }
     }
     kill(scheduler_pid,SIGUSR2);
-    sleep(100);
+    // sleep(100);
 return 0;
 }
 
