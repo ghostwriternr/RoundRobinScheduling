@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
             msg.mtype=getpid();
             while(msgsnd(msgid,&msg,strlen(msg.mtext),0)==-1);
             // printf("Sent Return to %d\nbefore pause()\n",scheduler_pid);
-            pause();
+			pause();
             // printf("after pause()\n");
         }
     	i+=1;

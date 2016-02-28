@@ -6,9 +6,9 @@
 int main()
 {
 	int n=4;
-    char NOI[2][20]={"500","500"};
+    char NOI[2][20]={"1000","1000"};
     char Priority[2][20]={"10","5"};
-    char SleepProb[2][20]={"30","50"};
+    char SleepProb[2][20]={"30","30"};
     char SleepTime[2][20]={"1","1"};
     char exe[100]={"./process.out "};
     char command[100];

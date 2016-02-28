@@ -59,10 +59,10 @@ int main(int argc,char *argv[])
             printf("Incorrect Arguments!\n");
             return 1;
         }
-    int timequanta=500;
+    int timequanta=50;
     if(argv[1][0]=='P')
         {
-        	timequanta=200;
+        	timequanta=10;
         	isPR=1;
         }
     key_t key=1025;
@@ -92,7 +92,7 @@ int main(int argc,char *argv[])
             notify(running.pid);    //notify scheduled process
             // printf("Quanta : %d, P%d %d is running\n",timequanta,find_ind(running.pid),running.pid);
         }
-        usleep(50);
+        // usleep(50);
         for(j=0;valid==1;j++)
 		{
 	        /*
@@ -201,12 +201,16 @@ void suspend(int pid)
 	kill(pid,SIGUSR1);
     enqueue(running);
     set_enqueue(running.pid);
-	// printf("Suspended %d\n", pid);
 }
 void enqueue(struct process q)
 {
+	int i;
+	for(i=rstart;i<rend;i++)
+		if(ready_queue[i].pid==q.pid)
+			return ;
     ready_queue[rend]=q;
-    rend+=1;
+    set_enqueue(q.pid);
+    rend=rend + 1;
 }
 
 void allocate(int isPR)
@@ -215,13 +219,14 @@ void allocate(int isPR)
     if(isPR == 0)
     {
         running = ready_queue[rstart];
-        printf("Ready Queue %d, ",ready_queue[rstart].pid);
+        printf("b4 Ready Queue %d, ",ready_queue[rstart].pid);
         for( i = rstart; i < rend-1; i++ ){
 	        ready_queue[i] = ready_queue[i+1];
         	printf("%d, ",ready_queue[i].pid);
         }
-        printf("\n");
+        printf("\t");
         rend = rend-1;
+        printf("after r : %d\n",rend-rstart);
         return ;
     }
     int min_priority = 100;
@@ -249,13 +254,13 @@ void set_response(int pid)
 void remove_entry(int pid)
 {
     int i,j;
-    for(i=rstart;i<rend;i++)
+    for(i=rstart;i < rend;i++)
     {
         if(ready_queue[i].pid==pid)
         {
-            for(j=i;j<rend;j++)
+            for(j=i; j < rend-1;j++)
                 ready_queue[j]=ready_queue[j+1];
-            rend--;
+            rend=rend -1;
             return ;
         }
     }
@@ -299,12 +304,11 @@ void check_io_returns()
         // printf("expecting io return of %d\n",waiting_queue[i].pid);
         if(status!=-1 && msg.mtext[0]=='d') //returned from I/O
         {
-            ready_queue[rend++]=waiting_queue[i];
+            enqueue(waiting_queue[i]);
             printf("P%d %d completes I/O\n",find_ind(waiting_queue[i].pid),waiting_queue[i].pid);//sleep(1);
             for(j=i;j < wend-1;j++)
                 waiting_queue[j]=waiting_queue[j+1];
-            wend--;
-            set_enqueue(ready_queue[rend-1].pid);
+            wend = wend - 1;
         }
     }
 
