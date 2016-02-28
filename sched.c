@@ -12,8 +12,6 @@ struct timetrack
 {
     int pid;
     clock_t begin,prev_enqueue,dispatch;
-    float dispatched[100000];
-    float enqueued[100000];
     int dispatch_count;
     int enqueue_count;
     float waiting;
@@ -45,7 +43,7 @@ void suspend(int pid);
 void set_turnaround(int pid);
 void set_enqueue(int pid);
 void set_response(int pid);
-float calculate_wait(int pid);
+// float calculate_wait(int pid);
 void set_dispatch(int pid);
 int find_ind(int pid);
 void io_handler();
@@ -157,15 +155,15 @@ int find_ind(int pid)
     return i;
 }
 
-float calculate_wait(int pid)
-{
-    int i=0,j,k;
-    float ans=0,temp=0;
-    for(;tt[i].pid!=pid;i++);
-    for(j=0;j<tt[i].dispatch_count;j++)
-        ans+=tt[i].dispatched[j] - tt[i].enqueued[j];
-    return ans/CLOCKS_PER_SEC;
-}
+// float calculate_wait(int pid)
+// {
+//     int i=0,j,k;
+//     float ans=0,temp=0;
+//     for(;tt[i].pid!=pid;i++);
+//     for(j=0;j<tt[i].dispatch_count;j++)
+//         ans+=tt[i].dispatched[j] - tt[i].enqueued[j];
+//     return ans/CLOCKS_PER_SEC;
+// }
 
 void set_dispatch(int pid)
 {
