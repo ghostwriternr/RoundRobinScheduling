@@ -6,10 +6,10 @@
 int main()
 {
 	int n=4;
-    char NOI[2][20]={"1000","1000"};
+    char NOI[2][20]={"10000","4000"};
     char Priority[2][20]={"10","5"};
-    char SleepProb[2][20]={"30","30"};
-    char SleepTime[2][20]={"1","1"};
+    char SleepProb[2][20]={"30","70"};
+    char SleepTime[2][20]={"1","3"};
     char exe[100]={"./process.out "};
     char command[100];
     int i=0;
@@ -41,11 +41,10 @@ int main()
     strcat(command,SleepTime[0]);
     for(i=0;i<(n+1)/2;i++)
     {
-    	printf("\t%d : %s\n",i,command);
+    	// printf("\t%d : %s\n",i,command);
         if(fork()==0)
             {
                 execl("/usr/bin/xterm", "/usr/bin/xterm", "-e", "bash", "-c", command, (void*)NULL);
-            	printf("afaf");
             }
         sleep(1);
     }
@@ -64,7 +63,6 @@ int main()
     strcat(command,SleepTime[1]);
     for(;i<n;i++)    
     {
-    	printf("\t%d : %s\n",i,command);
         if(fork()==0)
             {
                 execl("/usr/bin/xterm", "/usr/bin/xterm", "-e", "bash", "-c", command, (void*)NULL);

@@ -43,7 +43,7 @@ void set_turnaround(int pid);
 void set_enqueue(int pid);
 void set_response(int pid);
 void set_dispatch(int pid);
-int find_ind(int pid);
+int	find_ind(int pid);
 void io_handler();
 void terminated_handler();
 void check_io_returns();
@@ -59,10 +59,10 @@ int main(int argc,char *argv[])
             printf("Incorrect Arguments!\n");
             return 1;
         }
-    int timequanta=50;
+    int timequanta=1000;
     if(argv[1][0]=='P')
         {
-        	timequanta=10;
+        	timequanta=2000;
         	isPR=1;
         }
     key_t key=1025;
@@ -75,7 +75,6 @@ int main(int argc,char *argv[])
     if(status==-1)
         return 1;
     insert(msg.mtext);
-    printf("%d Very first Process\n",ready_queue[rend-1].pid);
     /*
     	Send Scheduler PID to Received PID
     */
@@ -90,9 +89,9 @@ int main(int argc,char *argv[])
             // printf("before dispatch r : %d, w : %d, p : %d\n",rend-rstart,wend-wstart,process_count);
         	allocate(isPR); //schedule a process
             notify(running.pid);    //notify scheduled process
-            // printf("Quanta : %d, P%d %d is running\n",timequanta,find_ind(running.pid),running.pid);
+            printf("P%d %d is running\n",find_ind(running.pid),running.pid);
         }
-        // usleep(50);
+		usleep(50);
         for(j=0;valid==1;j++)
 		{
 	        /*
@@ -107,7 +106,6 @@ int main(int argc,char *argv[])
 	    		break;
 			}
 	    }
-	    // printf("j final %d, tq %d\n",j,timequanta);
         do{
 	    	check_new_processes();
 	    	check_io_returns();
@@ -133,7 +131,6 @@ void io_handler()
 {
 	waiting_queue[wend]=running;
 	wend+=1;
-	// printf("\tinside io handler w : %d\n",wend-wstart );
 	valid=0;
     printf("P%d %d requests I/O\n",find_ind(running.pid),running.pid);
 }
@@ -143,7 +140,7 @@ void terminated_handler()
         process_count-=1;
         valid=0;
         set_turnaround(running.pid);
-
+        printf("P%d %d terminated\n",find_ind(running.pid),running.pid);
 }
 
 int find_ind(int pid)
@@ -153,22 +150,10 @@ int find_ind(int pid)
     return i;
 }
 
-// float calculate_wait(int pid)
-// {
-//     int i=0,j,k;
-//     float ans=0,temp=0;
-//     for(;tt[i].pid!=pid;i++);
-//     for(j=0;j<tt[i].dispatch_count;j++)
-//         ans+=tt[i].dispatched[j] - tt[i].enqueued[j];
-//     return ans/CLOCKS_PER_SEC;
-// }
-
 void set_dispatch(int pid)
 {
     int i=0;
     for(;tt[i].pid!=pid;i++);
-    // tt[i].dispatched[tt[i].dispatch_count]=(float)clock();
-    // tt[i].dispatch_count++;
     tt[i].waiting+=((float)(clock()-tt[i].prev_enqueue))/CLOCKS_PER_SEC;
 }
 
@@ -191,7 +176,7 @@ void set_turnaround(int pid)
 void notify(int pid)
 {
     kill(pid,SIGUSR2);
-    printf("Notified %d\n",pid);
+    // printf("Notified %d\n",pid);
     set_dispatch(pid);
     set_response(pid);
 }
@@ -199,9 +184,11 @@ void notify(int pid)
 void suspend(int pid)
 {
 	kill(pid,SIGUSR1);
+	printf("Suspended %d\n",pid);
     enqueue(running);
     set_enqueue(running.pid);
 }
+
 void enqueue(struct process q)
 {
 	int i;
@@ -219,14 +206,14 @@ void allocate(int isPR)
     if(isPR == 0)
     {
         running = ready_queue[rstart];
-        printf("b4 Ready Queue %d, ",ready_queue[rstart].pid);
+        // printf("b4 Ready Queue %d, ",ready_queue[rstart].pid);
         for( i = rstart; i < rend-1; i++ ){
 	        ready_queue[i] = ready_queue[i+1];
         	printf("%d, ",ready_queue[i].pid);
         }
-        printf("\t");
+        // printf("\t");
         rend = rend-1;
-        printf("after r : %d\n",rend-rstart);
+        // printf("after r : %d\n",rend-rstart);
         return ;
     }
     int min_priority = 100;
@@ -248,7 +235,6 @@ void set_response(int pid)
     for(;tt[i].pid!=pid;i++);
     if(tt[i].response<0)    //check whether already set?
         tt[i].response=((float)(clock()-tt[i].begin))/CLOCKS_PER_SEC;
-        //if(!i) tt[i].response/=10;
 }
 
 void remove_entry(int pid)
@@ -333,7 +319,7 @@ void check_new_processes()
             while(msgsnd(msgid,&msg,strlen(msg.mtext),0)==-1);
             if(status==-1)
                 printf("Scheduler PID sending to pid %ld failed\n",msg.mtype);
-        	printf("process %d added\n",ready_queue[rend-1].pid);
+        	// printf("process %d added\n",ready_queue[rend-1].pid);
         	set_enqueue(ready_queue[rend-1].pid);
         }
 }

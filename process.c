@@ -63,14 +63,12 @@ int main(int argc, char *argv[])
             msg.mtext[0]='d';
             msg.mtype=getpid();
             while(msgsnd(msgid,&msg,strlen(msg.mtext),0)==-1);
-            // printf("Sent Return to %d\nbefore pause()\n",scheduler_pid);
 			pause();
-            // printf("after pause()\n");
         }
     	i+=1;
 	}
     kill(scheduler_pid,SIGUSR2);
-    printf("Process Terminated\n\n\n\tIO count %d\n\n",count);
+    printf("\nProcess Terminated\n\n");
     getchar();
 return 0;
 }
@@ -97,7 +95,6 @@ void extract(char *S[], int *NOI,int *SleepProb,int *Priority,int *SleepTime)
 void suspend_handler()
 {
 	// printf("Suspended\n");
-	// signal(SIGUSR2,notify_handler);
 	pause();
 	// printf("returning from suspension\n");
 }
