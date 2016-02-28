@@ -61,9 +61,9 @@ int main(int argc,char *argv[])
             printf("Incorrect Arguments!\n");
             return 1;
         }
-    int timequanta=1000;
+    int timequanta=1;
     if(argv[1][0]=='P')
-        timequanta=2000;
+        timequanta=2;
     key_t key=1025;
     int status,i,j,running_pid,isPR=(timequanta==2000);//,issuccess;
     msgid=msgget(key,IPC_CREAT|0644);
@@ -88,8 +88,9 @@ int main(int argc,char *argv[])
         if(rstart<rend){
             allocate(isPR); //schedule a process
             notify(running.pid);    //notify scheduled process
-            printf("Quanta : %d, P%d %d is running\n",timequanta,find_ind(running.pid),running.pid);
+            // printf("Quanta : %d, P%d %d is running\n",timequanta,find_ind(running.pid),running.pid);
         }
+        usleep(50);
         // printf(" %d : after dispatch r : %d, w : %d, p : %d\n",getpid(),rend-rstart,wend-wstart,process_count);
         for(j=0,printf("j initial : %d, ",j);valid==1;j++)
 		{
@@ -131,7 +132,7 @@ void io_handler()
 {
 	waiting_queue[wend]=running;
 	wend+=1;
-	printf("\tinside io handler w : %d\n",wend-wstart );
+	// printf("\tinside io handler w : %d\n",wend-wstart );
 	valid=0;
     printf("P%d %d requests I/O\n",find_ind(running.pid),running.pid);
 }
@@ -187,7 +188,7 @@ void set_turnaround(int pid)
 void notify(int pid)
 {
     kill(pid,SIGUSR2);
-    printf("Notified %d\n",pid);
+    // printf("Notified %d\n",pid);
     set_dispatch(pid);
     set_response(pid);
 }
@@ -197,7 +198,7 @@ void suspend(int pid)
 	kill(pid,SIGUSR1);
     enqueue(running);
     set_enqueue(running.pid);
-	printf("Suspended %d\n", pid);
+	// printf("Suspended %d\n", pid);
 }
 void enqueue(struct process q)
 {
@@ -280,7 +281,7 @@ void insert(char S[])
         }
     ready_queue[rend].Priority=j;
     rend++;
-    printf("inside insert r : %d\n",rend-rstart);
+    // printf("inside insert r : %d\n",rend-rstart);
 }
 
 void check_io_returns()
