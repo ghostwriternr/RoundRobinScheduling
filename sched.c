@@ -11,12 +11,11 @@
 struct timetrack
 {
     int pid;
-    clock_t begin,prev_enqueue,dispatch;
-    int dispatch_count;
-    int enqueue_count;
     float waiting;
     float response;
     float turnaround;
+    clock_t dispatch;
+    clock_t begin,prev_enqueue;
 } tt[400];
 
 struct message
@@ -43,7 +42,6 @@ void suspend(int pid);
 void set_turnaround(int pid);
 void set_enqueue(int pid);
 void set_response(int pid);
-// float calculate_wait(int pid);
 void set_dispatch(int pid);
 int find_ind(int pid);
 void io_handler();
@@ -61,7 +59,7 @@ int main(int argc,char *argv[])
             printf("Incorrect Arguments!\n");
             return 1;
         }
-    int timequanta=1000;
+    int timequanta=500;
     if(argv[1][0]=='P')
         {
         	timequanta=200;
@@ -77,6 +75,7 @@ int main(int argc,char *argv[])
     if(status==-1)
         return 1;
     insert(msg.mtext);
+    printf("%d Very first Process\n",ready_queue[rend-1].pid);
     /*
     	Send Scheduler PID to Received PID
     */
@@ -88,13 +87,13 @@ int main(int argc,char *argv[])
     while(process_count!=0)
     {
         if(rstart<rend){
-            allocate(isPR); //schedule a process
+            // printf("before dispatch r : %d, w : %d, p : %d\n",rend-rstart,wend-wstart,process_count);
+        	allocate(isPR); //schedule a process
             notify(running.pid);    //notify scheduled process
             // printf("Quanta : %d, P%d %d is running\n",timequanta,find_ind(running.pid),running.pid);
         }
         usleep(50);
-        // printf(" %d : after dispatch r : %d, w : %d, p : %d\n",getpid(),rend-rstart,wend-wstart,process_count);
-        for(j=0,printf("j initial : %d, ",j);valid==1;j++)
+        for(j=0;valid==1;j++)
 		{
 	        /*
 	        	Receive PID Priority from msgQ (if any)
@@ -108,7 +107,7 @@ int main(int argc,char *argv[])
 	    		break;
 			}
 	    }
-	    printf("j final %d, tq %d\n",j,timequanta);
+	    // printf("j final %d, tq %d\n",j,timequanta);
         do{
 	    	check_new_processes();
 	    	check_io_returns();
@@ -120,7 +119,6 @@ int main(int argc,char *argv[])
     fprintf(fp,"Process\t\tPID\tResponseT\tWaitingT\tTurnaroundT\t(in seconds)\n");
     for(i=0;i<total;i++)
         {
-        	printf("\n\tEQ : %d, DC : %d\n",tt[i].enqueue_count,tt[i].dispatch_count);
             fprintf(fp,"P%d\t\t%d\t%f\t%f\t%f\n", find_ind(tt[i].pid),tt[i].pid,tt[i].response,tt[i].waiting,tt[i].turnaround);
             res+=tt[i].response;
             turn+=tt[i].turnaround;
@@ -193,7 +191,7 @@ void set_turnaround(int pid)
 void notify(int pid)
 {
     kill(pid,SIGUSR2);
-    // printf("Notified %d\n",pid);
+    printf("Notified %d\n",pid);
     set_dispatch(pid);
     set_response(pid);
 }
@@ -214,23 +212,26 @@ void enqueue(struct process q)
 void allocate(int isPR)
 {
     int i,j;
-    if(isPR==0)
+    if(isPR == 0)
     {
-        running=ready_queue[rstart];
-        for(i=rstart;i<rend;i++){
-            ready_queue[i]=ready_queue[i+1];
+        running = ready_queue[rstart];
+        printf("Ready Queue %d, ",ready_queue[rstart].pid);
+        for( i = rstart; i < rend-1; i++ ){
+	        ready_queue[i] = ready_queue[i+1];
+        	printf("%d, ",ready_queue[i].pid);
         }
-        rend--;
+        printf("\n");
+        rend = rend-1;
         return ;
     }
-    int min_priority=100;
-    for(i=rstart;i<rend;i++)
-        if(ready_queue[i].Priority<min_priority)
-            min_priority=ready_queue[i].Priority;
-    for(i=rstart;i<rend;i++)
-        if(ready_queue[i].Priority==min_priority)
+    int min_priority = 100;
+    for(i = rstart;i < rend;i++)
+        if(ready_queue[i].Priority < min_priority)
+            min_priority = ready_queue[i].Priority;
+    for(i = rstart;i < rend;i++)
+        if(ready_queue[i].Priority == min_priority)
             {
-                running=ready_queue[i];
+                running = ready_queue[i];
                 remove_entry(running.pid);
                 break;
             }
@@ -271,11 +272,9 @@ void insert(char S[])
                 break;
         }
     ready_queue[rend].pid=j;
-    tt[tt_count].dispatch_count=0;
     tt[tt_count].pid=j;
     tt[tt_count].begin=clock();
     tt[tt_count].response=-1;
-    tt[tt_count].enqueue_count=0;
     tt[tt_count].waiting=0;
     tt_count++;
     for(j=0,i+=1;i<n;i++)
@@ -302,7 +301,7 @@ void check_io_returns()
         {
             ready_queue[rend++]=waiting_queue[i];
             printf("P%d %d completes I/O\n",find_ind(waiting_queue[i].pid),waiting_queue[i].pid);//sleep(1);
-            for(j=i;j<wend;j++)
+            for(j=i;j < wend-1;j++)
                 waiting_queue[j]=waiting_queue[j+1];
             wend--;
             set_enqueue(ready_queue[rend-1].pid);
@@ -330,6 +329,7 @@ void check_new_processes()
             while(msgsnd(msgid,&msg,strlen(msg.mtext),0)==-1);
             if(status==-1)
                 printf("Scheduler PID sending to pid %ld failed\n",msg.mtype);
-            set_enqueue(ready_queue[rend-1].pid);
+        	printf("process %d added\n",ready_queue[rend-1].pid);
+        	set_enqueue(ready_queue[rend-1].pid);
         }
 }

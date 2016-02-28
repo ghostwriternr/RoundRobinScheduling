@@ -39,7 +39,8 @@ int main(int argc, char *argv[])
     sprintf(msg.mtext,"%d ",getpid());
     strcat(msg.mtext,argv[2]);
     msg.mtype=200;
-	while(msgsnd(msgid,&msg,100,0)==-1);
+	while(msgsnd(msgid,&msg,strlen(msg.mtext),0)==-1);
+	printf("PID sent to scheduler\n");
     memset(msg.mtext,'\0',msglen);
 	while(msgrcv(msgid, &msg, msglen, pid, 0)==-1);
     scheduler_pid=toint(msg.mtext);
