@@ -11,11 +11,12 @@
 struct timetrack
 {
     int pid;
-    clock_t begin;
-    float dispatched[10000];
+    clock_t begin,prev_enqueue,dispatch;
+    float dispatched[100000];
+    float enqueued[100000];
     int dispatch_count;
-    float enqueued[10000];
     int enqueue_count;
+    float waiting;
     float response;
     float turnaround;
 } tt[400];
@@ -56,16 +57,19 @@ int main(int argc,char *argv[])
 {
 	signal(SIGUSR1,io_handler);
 	signal(SIGUSR2,terminated_handler);
+    int status,i,j,running_pid,isPR=0;
     if(argc!=2 || (strcmp(argv[1],"RR")!=0 && strcmp(argv[1],"PR")!=0))
         {
             printf("Incorrect Arguments!\n");
             return 1;
         }
-    int timequanta=1;
+    int timequanta=1000;
     if(argv[1][0]=='P')
-        timequanta=2;
+        {
+        	timequanta=200;
+        	isPR=1;
+        }
     key_t key=1025;
-    int status,i,j,running_pid,isPR=(timequanta==2000);//,issuccess;
     msgid=msgget(key,IPC_CREAT|0644);
     /**
     	Receive PID and Priority of first process
@@ -118,10 +122,11 @@ int main(int argc,char *argv[])
     fprintf(fp,"Process\t\tPID\tResponseT\tWaitingT\tTurnaroundT\t(in seconds)\n");
     for(i=0;i<total;i++)
         {
-            fprintf(fp,"P%d\t\t%d\t%f\t%f\t%f\n", find_ind(tt[i].pid),tt[i].pid,tt[i].response,calculate_wait(tt[i].pid),tt[i].turnaround);
+        	printf("\n\tEQ : %d, DC : %d\n",tt[i].enqueue_count,tt[i].dispatch_count);
+            fprintf(fp,"P%d\t\t%d\t%f\t%f\t%f\n", find_ind(tt[i].pid),tt[i].pid,tt[i].response,tt[i].waiting,tt[i].turnaround);
             res+=tt[i].response;
             turn+=tt[i].turnaround;
-            wait+=calculate_wait(tt[i].pid);
+            wait+=tt[i].waiting;
         }
     fprintf(fp,"Average Values\t\t%f\t%f\t%f",res/tt_count,wait/tt_count,turn/tt_count);
     fclose(fp);
@@ -166,16 +171,18 @@ void set_dispatch(int pid)
 {
     int i=0;
     for(;tt[i].pid!=pid;i++);
-    tt[i].dispatched[tt[i].dispatch_count]=(float)clock();
-    tt[i].dispatch_count++;
+    // tt[i].dispatched[tt[i].dispatch_count]=(float)clock();
+    // tt[i].dispatch_count++;
+    tt[i].waiting+=((float)(clock()-tt[i].prev_enqueue))/CLOCKS_PER_SEC;
 }
 
 void set_enqueue(int pid)
 {
     int i=0;
     for(;tt[i].pid!=pid;i++);
-    tt[i].enqueued[tt[i].enqueue_count]=(float)clock();
-    tt[i].enqueue_count++;
+    // tt[i].enqueued[tt[i].enqueue_count]=(float)clock();
+    // tt[i].enqueue_count++;
+    tt[i].prev_enqueue=clock();
 }
 
 void set_turnaround(int pid)
@@ -271,6 +278,7 @@ void insert(char S[])
     tt[tt_count].begin=clock();
     tt[tt_count].response=-1;
     tt[tt_count].enqueue_count=0;
+    tt[tt_count].waiting=0;
     tt_count++;
     for(j=0,i+=1;i<n;i++)
         {

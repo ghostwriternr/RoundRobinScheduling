@@ -5,10 +5,10 @@
 
 int main()
 {
-	int n=2;
-    char NOI[2][20]={"100","50"};
+	int n=4;
+    char NOI[2][20]={"500","500"};
     char Priority[2][20]={"10","5"};
-    char SleepProb[2][20]={"30","70"};
+    char SleepProb[2][20]={"30","50"};
     char SleepTime[2][20]={"1","1"};
     char exe[100]={"./process.out "};
     char command[100];

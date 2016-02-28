@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     int pid=(int)getpid(),flag=1,pr;
     printf("PID %d\n",pid);
     int NOI,SleepProb,Priority,SleepTime; //SleepProb is on a base of 100 i.e 0.3->30
-    int i=1,j,k,timequanta=1000,temp,status;
+    int i=1,j,k,temp,status,count=0;
     key_t key=1025;
     extract(argv,&NOI,&SleepProb,&Priority,&SleepTime);
     msgid=msgget(key,IPC_CREAT|0644);
@@ -51,6 +51,7 @@ int main(int argc, char *argv[])
         pr=rand()%100+1;
         if(pr<=SleepProb)
         {
+        	count++;
             kill(scheduler_pid,SIGUSR1);
             printf("PID: %d Going for IO\n",pid);
             sleep(SleepTime);
@@ -68,7 +69,7 @@ int main(int argc, char *argv[])
     	i+=1;
 	}
     kill(scheduler_pid,SIGUSR2);
-    printf("Process Terminated\n");
+    printf("Process Terminated\n\n\n\tIO count %d\n\n",count);
     getchar();
 return 0;
 }
